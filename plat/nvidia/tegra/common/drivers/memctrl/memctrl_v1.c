@@ -12,11 +12,9 @@
 #include <mmio.h>
 #include <string.h>
 #include <tegra_def.h>
+#include <tegra_private.h>
 #include <utils.h>
 #include <xlat_tables_v2.h>
-
-#define TEGRA_GPU_RESET_REG_OFFSET	0x28c
-#define  GPU_RESET_BIT			(1 << 24)
 
 /* Video Memory base and size (live values) */
 static uint64_t video_mem_base;
@@ -107,16 +105,19 @@ void tegra_memctrl_tzram_setup(uint64_t phys_base, uint32_t size_in_bytes)
 	 */
 }
 
-static void tegra_clear_videomem(uintptr_t non_overlap_area_start,
-				 unsigned long long non_overlap_area_size)
+static void tegra_clear_videomem(uint64_t non_overlap_area_start,
+				 uint64_t non_overlap_area_size)
 {
+	int ret;
+
 	/*
 	 * Map the NS memory first, clean it and then unmap it.
 	 */
-	mmap_add_dynamic_region(non_overlap_area_start, /* PA */
+	ret = mmap_add_dynamic_region(non_overlap_area_start, /* PA */
 				non_overlap_area_start, /* VA */
 				non_overlap_area_size, /* size */
 				MT_NS | MT_RW | MT_EXECUTE_NEVER); /* attrs */
+	assert(ret == 0);
 
 	zeromem((void *)non_overlap_area_start, non_overlap_area_size);
 	flush_dcache_range(non_overlap_area_start, non_overlap_area_size);
@@ -133,21 +134,9 @@ static void tegra_clear_videomem(uintptr_t non_overlap_area_start,
  */
 void tegra_memctrl_videomem_setup(uint64_t phys_base, uint32_t size_in_bytes)
 {
-	uintptr_t vmem_end_old = video_mem_base + (video_mem_size << 20);
-	uintptr_t vmem_end_new = phys_base + size_in_bytes;
-	uint32_t regval;
-	unsigned long long non_overlap_area_size;
-
-	/*
-	 * The GPU is the user of the Video Memory region. In order to
-	 * transition to the new memory region smoothly, we program the
-	 * new base/size ONLY if the GPU is in reset mode.
-	 */
-	regval = mmio_read_32(TEGRA_CAR_RESET_BASE + TEGRA_GPU_RESET_REG_OFFSET);
-	if ((regval & GPU_RESET_BIT) == 0) {
-		ERROR("GPU not in reset! Video Memory setup failed\n");
-		return;
-	}
+	uint64_t vmem_end_old = video_mem_base + (video_mem_size << 20);
+	uint64_t vmem_end_new = phys_base + size_in_bytes;
+	uint64_t non_overlap_area_size;
 
 	/*
 	 * Setup the Memory controller to restrict CPU accesses to the Video
@@ -218,4 +207,17 @@ void tegra_memctrl_disable_ahb_redirection(void)
 
 	/* lock the aperture registers */
 	tegra_mc_write_32(MC_IRAM_REG_CTRL, MC_DISABLE_IRAM_CFG_WRITES);
+}
+
+void tegra_memctrl_clear_pending_interrupts(void)
+{
+	uint32_t mcerr;
+
+	/* check if there are any pending interrupts */
+	mcerr = mmio_read_32(TEGRA_MC_BASE + MC_INTSTATUS);
+
+	if (mcerr != (uint32_t)0U) { /* should not see error here */
+		WARN("MC_INTSTATUS = 0x%x (should be zero)\n", mcerr);
+		mmio_write_32((TEGRA_MC_BASE + MC_INTSTATUS),  mcerr);
+	}
 }

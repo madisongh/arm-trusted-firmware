@@ -11,9 +11,11 @@
 #include <pmc.h>
 #include <tegra_def.h>
 
+#define RESET_ENABLE	0x10U
+
 /* Module IDs used during power ungate procedure */
-static const int pmc_cpu_powergate_id[4] = {
-	0, /* CPU 0 */
+static const uint32_t pmc_cpu_powergate_id[4] = {
+	14, /* CPU 0 */
 	9, /* CPU 1 */
 	10, /* CPU 2 */
 	11 /* CPU 3 */
@@ -23,7 +25,7 @@ static const int pmc_cpu_powergate_id[4] = {
  * Power ungate CPU to start the boot process. CPU reset vectors must be
  * populated before calling this function.
  ******************************************************************************/
-void tegra_pmc_cpu_on(int cpu)
+void tegra_pmc_cpu_on(int32_t cpu)
 {
 	uint32_t val;
 
@@ -31,35 +33,34 @@ void tegra_pmc_cpu_on(int cpu)
 	 * Check if CPU is already power ungated
 	 */
 	val = tegra_pmc_read_32(PMC_PWRGATE_STATUS);
-	if (val & (1 << pmc_cpu_powergate_id[cpu]))
-		return;
+	if ((val & ((uint32_t)1 << pmc_cpu_powergate_id[cpu])) == 0U) {
+		/*
+		 * The PMC deasserts the START bit when it starts the power
+		 * ungate process. Loop till no power toggle is in progress.
+		 */
+		do {
+			val = tegra_pmc_read_32(PMC_PWRGATE_TOGGLE);
+		} while ((val & PMC_TOGGLE_START) != 0U);
 
-	/*
-	 * The PMC deasserts the START bit when it starts the power
-	 * ungate process. Loop till no power toggle is in progress.
-	 */
-	do {
-		val = tegra_pmc_read_32(PMC_PWRGATE_TOGGLE);
-	} while (val & PMC_TOGGLE_START);
+		/*
+		 * Start the power ungate procedure
+		 */
+		val = pmc_cpu_powergate_id[cpu] | PMC_TOGGLE_START;
+		tegra_pmc_write_32(PMC_PWRGATE_TOGGLE, val);
 
-	/*
-	 * Start the power ungate procedure
-	 */
-	val = pmc_cpu_powergate_id[cpu] | PMC_TOGGLE_START;
-	tegra_pmc_write_32(PMC_PWRGATE_TOGGLE, val);
+		/*
+		 * The PMC deasserts the START bit when it starts the power
+		 * ungate process. Loop till powergate START bit is asserted.
+		 */
+		do {
+			val = tegra_pmc_read_32(PMC_PWRGATE_TOGGLE);
+		} while ((val & (1U << 8)) != 0U);
 
-	/*
-	 * The PMC deasserts the START bit when it starts the power
-	 * ungate process. Loop till powergate START bit is asserted.
-	 */
-	do {
-		val = tegra_pmc_read_32(PMC_PWRGATE_TOGGLE);
-	} while (val & (1 << 8));
-
-	/* loop till the CPU is power ungated */
-	do {
-		val = tegra_pmc_read_32(PMC_PWRGATE_STATUS);
-	} while ((val & (1 << pmc_cpu_powergate_id[cpu])) == 0);
+		/* loop till the CPU is power ungated */
+		do {
+			val = tegra_pmc_read_32(PMC_PWRGATE_STATUS);
+		} while ((val & ((uint32_t)1 << pmc_cpu_powergate_id[cpu])) == 0U);
+	}
 }
 
 /*******************************************************************************
@@ -69,9 +70,10 @@ void tegra_pmc_cpu_setup(uint64_t reset_addr)
 {
 	uint32_t val;
 
-	tegra_pmc_write_32(PMC_SECURE_SCRATCH34, (reset_addr & 0xFFFFFFFF) | 1);
-	val = reset_addr >> 32;
-	tegra_pmc_write_32(PMC_SECURE_SCRATCH35, val & 0x7FF);
+	tegra_pmc_write_32(PMC_SECURE_SCRATCH34,
+			   ((uint32_t)reset_addr & 0xFFFFFFFFU) | 1U);
+	val = (uint32_t)(reset_addr >> 32U);
+	tegra_pmc_write_32(PMC_SECURE_SCRATCH35, val & 0x7FFU);
 }
 
 /*******************************************************************************
@@ -94,6 +96,45 @@ void tegra_pmc_lock_cpu_vectors(void)
 }
 
 /*******************************************************************************
+ * Find out if this is the last standing CPU
+ ******************************************************************************/
+bool tegra_pmc_is_last_on_cpu(void)
+{
+	int i, cpu = read_mpidr() & MPIDR_CPU_MASK;
+	uint32_t val = tegra_pmc_read_32(PMC_PWRGATE_STATUS);;
+	bool status = true;
+
+	/* check if this is the last standing CPU */
+	for (i = 0; i < PLATFORM_MAX_CPUS_PER_CLUSTER; i++) {
+
+		/* skip the current CPU */
+		if (i == cpu)
+			continue;
+
+		/* are other CPUs already power gated? */
+		if ((val & ((uint32_t)1 << pmc_cpu_powergate_id[i])) != 0U) {
+			status = false;
+		}
+	}
+
+	return status;
+}
+
+/*******************************************************************************
+ * Handler to be called on exiting System suspend. Right now only DPD registers
+ * are cleared.
+ ******************************************************************************/
+void tegra_pmc_resume(void)
+{
+
+	/* Clear DPD sample */
+	mmio_write_32((TEGRA_PMC_BASE + PMC_IO_DPD_SAMPLE), 0x0);
+
+	/* Clear DPD Enable */
+	mmio_write_32((TEGRA_PMC_BASE + PMC_DPD_ENABLE_0), 0x0);
+}
+
+/*******************************************************************************
  * Restart the system
  ******************************************************************************/
 __dead2 void tegra_pmc_system_reset(void)
@@ -101,7 +142,7 @@ __dead2 void tegra_pmc_system_reset(void)
 	uint32_t reg;
 
 	reg = tegra_pmc_read_32(PMC_CONFIG);
-	reg |= 0x10;		/* restart */
+	reg |= RESET_ENABLE;		/* restart */
 	tegra_pmc_write_32(PMC_CONFIG, reg);
 	wfi();
 

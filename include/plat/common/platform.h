@@ -39,7 +39,7 @@ struct bl_params;
  * Mandatory common functions
  ******************************************************************************/
 unsigned long long plat_get_syscnt_freq(void) __deprecated;
-unsigned int plat_get_syscnt_freq2(void);
+uint32_t plat_get_syscnt_freq2(void);
 
 int plat_get_image_source(unsigned int image_id,
 			uintptr_t *dev_handle,
@@ -235,7 +235,7 @@ struct entry_point_info *bl31_plat_get_next_image_ep_info(uint32_t type);
  * Mandatory PSCI functions (BL31)
  ******************************************************************************/
 int plat_setup_psci_ops(uintptr_t sec_entrypoint,
-			const struct plat_psci_ops **);
+			const struct plat_psci_ops **psci_ops);
 const unsigned char *plat_get_power_domain_tree_desc(void);
 
 /*******************************************************************************
@@ -320,6 +320,13 @@ unsigned int plat_get_aff_state(unsigned int, unsigned long);
  * have the compatibility layer disabled.
  */
 unsigned int platform_get_core_pos(unsigned long mpidr) __deprecated;
+
+/*
+ * Helper function for platform_get_pos() when platform compatibility is
+ * disabled. This is to enable SPDs using the older platform API to continue
+ * to work.
+ */
+uint32_t platform_core_pos_helper(uint64_t mpidr);
 
 #endif /* __ENABLE_PLAT_COMPAT__ */
 

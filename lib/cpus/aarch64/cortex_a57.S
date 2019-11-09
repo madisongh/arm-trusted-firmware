@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2017, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2014-2018, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -29,12 +29,12 @@ endfunc cortex_a57_disable_dcache
 	 * ---------------------------------------------
 	 */
 func cortex_a57_disable_l2_prefetch
-	mrs	x0, CPUECTLR_EL1
-	orr	x0, x0, #CPUECTLR_DIS_TWD_ACC_PFTCH_BIT
-	mov	x1, #CPUECTLR_L2_IPFTCH_DIST_MASK
-	orr	x1, x1, #CPUECTLR_L2_DPFTCH_DIST_MASK
+	mrs	x0, CORTEX_A57_ECTLR_EL1
+	orr	x0, x0, #CORTEX_A57_ECTLR_DIS_TWD_ACC_PFTCH_BIT
+	mov	x1, #CORTEX_A57_ECTLR_L2_IPFTCH_DIST_MASK
+	orr	x1, x1, #CORTEX_A57_ECTLR_L2_DPFTCH_DIST_MASK
 	bic	x0, x0, x1
-	msr	CPUECTLR_EL1, x0
+	msr	CORTEX_A57_ECTLR_EL1, x0
 	isb
 	dsb	ish
 	ret
@@ -45,9 +45,9 @@ endfunc cortex_a57_disable_l2_prefetch
 	 * ---------------------------------------------
 	 */
 func cortex_a57_disable_smp
-	mrs	x0, CPUECTLR_EL1
-	bic	x0, x0, #CPUECTLR_SMP_BIT
-	msr	CPUECTLR_EL1, x0
+	mrs	x0, CORTEX_A57_ECTLR_EL1
+	bic	x0, x0, #CORTEX_A57_ECTLR_SMP_BIT
+	msr	CORTEX_A57_ECTLR_EL1, x0
 	ret
 endfunc cortex_a57_disable_smp
 
@@ -78,9 +78,9 @@ func errata_a57_806969_wa
 	mov	x17, x30
 	bl	check_errata_806969
 	cbz	x0, 1f
-	mrs	x1, CPUACTLR_EL1
-	orr	x1, x1, #CPUACTLR_NO_ALLOC_WBWA
-	msr	CPUACTLR_EL1, x1
+	mrs	x1, CORTEX_A57_ACTLR_EL1
+	orr	x1, x1, #CORTEX_A57_ACTLR_NO_ALLOC_WBWA
+	msr	CORTEX_A57_ACTLR_EL1, x1
 1:
 	ret	x17
 endfunc errata_a57_806969_wa
@@ -120,9 +120,9 @@ func errata_a57_813420_wa
 	mov	x17, x30
 	bl	check_errata_813420
 	cbz	x0, 1f
-	mrs	x1, CPUACTLR_EL1
-	orr	x1, x1, #CPUACTLR_DCC_AS_DCCI
-	msr	CPUACTLR_EL1, x1
+	mrs	x1, CORTEX_A57_ACTLR_EL1
+	orr	x1, x1, #CORTEX_A57_ACTLR_DCC_AS_DCCI
+	msr	CORTEX_A57_ACTLR_EL1, x1
 1:
 	ret	x17
 endfunc errata_a57_813420_wa
@@ -150,9 +150,9 @@ func a57_disable_ldnp_overread
 	mov	x17, x30
 	bl	check_errata_disable_ldnp_overread
 	cbz	x0, 1f
-	mrs	x1, CPUACTLR_EL1
-	orr	x1, x1, #CPUACTLR_DIS_OVERREAD
-	msr	CPUACTLR_EL1, x1
+	mrs	x1, CORTEX_A57_ACTLR_EL1
+	orr	x1, x1, #CORTEX_A57_ACTLR_DIS_OVERREAD
+	msr	CORTEX_A57_ACTLR_EL1, x1
 1:
 	ret	x17
 endfunc a57_disable_ldnp_overread
@@ -177,9 +177,9 @@ func errata_a57_826974_wa
 	mov	x17, x30
 	bl	check_errata_826974
 	cbz	x0, 1f
-	mrs	x1, CPUACTLR_EL1
-	orr	x1, x1, #CPUACTLR_DIS_LOAD_PASS_DMB
-	msr	CPUACTLR_EL1, x1
+	mrs	x1, CORTEX_A57_ACTLR_EL1
+	orr	x1, x1, #CORTEX_A57_ACTLR_DIS_LOAD_PASS_DMB
+	msr	CORTEX_A57_ACTLR_EL1, x1
 1:
 	ret	x17
 endfunc errata_a57_826974_wa
@@ -204,9 +204,9 @@ func errata_a57_826977_wa
 	mov	x17, x30
 	bl	check_errata_826977
 	cbz	x0, 1f
-	mrs	x1, CPUACTLR_EL1
-	orr	x1, x1, #CPUACTLR_GRE_NGRE_AS_NGNRE
-	msr	CPUACTLR_EL1, x1
+	mrs	x1, CORTEX_A57_ACTLR_EL1
+	orr	x1, x1, #CORTEX_A57_ACTLR_GRE_NGRE_AS_NGNRE
+	msr	CORTEX_A57_ACTLR_EL1, x1
 1:
 	ret	x17
 endfunc errata_a57_826977_wa
@@ -231,15 +231,16 @@ func errata_a57_828024_wa
 	mov	x17, x30
 	bl	check_errata_828024
 	cbz	x0, 1f
-	mrs	x1, CPUACTLR_EL1
+	mrs	x1, CORTEX_A57_ACTLR_EL1
 	/*
 	 * Setting the relevant bits in CPUACTLR_EL1 has to be done in 2
 	 * instructions here because the resulting bitmask doesn't fit in a
 	 * 16-bit value so it cannot be encoded in a single instruction.
 	 */
-	orr	x1, x1, #CPUACTLR_NO_ALLOC_WBWA
-	orr	x1, x1, #(CPUACTLR_DIS_L1_STREAMING | CPUACTLR_DIS_STREAMING)
-	msr	CPUACTLR_EL1, x1
+	orr	x1, x1, #CORTEX_A57_ACTLR_NO_ALLOC_WBWA
+	orr	x1, x1, #(CORTEX_A57_ACTLR_DIS_L1_STREAMING | \
+			  CORTEX_A57_ACTLR_DIS_STREAMING)
+	msr	CORTEX_A57_ACTLR_EL1, x1
 1:
 	ret	x17
 endfunc errata_a57_828024_wa
@@ -264,9 +265,9 @@ func errata_a57_829520_wa
 	mov	x17, x30
 	bl	check_errata_829520
 	cbz	x0, 1f
-	mrs	x1, CPUACTLR_EL1
-	orr	x1, x1, #CPUACTLR_DIS_INDIRECT_PREDICTOR
-	msr	CPUACTLR_EL1, x1
+	mrs	x1, CORTEX_A57_ACTLR_EL1
+	orr	x1, x1, #CORTEX_A57_ACTLR_DIS_INDIRECT_PREDICTOR
+	msr	CORTEX_A57_ACTLR_EL1, x1
 1:
 	ret	x17
 endfunc errata_a57_829520_wa
@@ -291,9 +292,9 @@ func errata_a57_833471_wa
 	mov	x17, x30
 	bl	check_errata_833471
 	cbz	x0, 1f
-	mrs	x1, CPUACTLR_EL1
-	orr	x1, x1, #CPUACTLR_FORCE_FPSCR_FLUSH
-	msr	CPUACTLR_EL1, x1
+	mrs	x1, CORTEX_A57_ACTLR_EL1
+	orr	x1, x1, #CORTEX_A57_ACTLR_FORCE_FPSCR_FLUSH
+	msr	CORTEX_A57_ACTLR_EL1, x1
 1:
 	ret	x17
 endfunc errata_a57_833471_wa
@@ -302,6 +303,48 @@ func check_errata_833471
 	mov	x1, #0x12
 	b	cpu_rev_var_ls
 endfunc check_errata_833471
+
+	/* --------------------------------------------------
+	 * Errata Workaround for Cortex A57 Errata #859972.
+	 * This applies only to revision <= r1p3 of Cortex A57.
+	 * Inputs:
+	 * x0: variant[4:7] and revision[0:3] of current cpu.
+	 * Shall clobber:
+	 * --------------------------------------------------
+	 */
+func errata_a57_859972_wa
+	mov	x17, x30
+	bl	check_errata_859972
+	cbz	x0, 1f
+	mrs	x1, CORTEX_A57_ACTLR_EL1
+	orr	x1, x1, #CORTEX_A57_ACTLR_EL1_DIS_INSTR_PREFETCH
+	msr	CORTEX_A57_ACTLR_EL1, x1
+1:
+	ret	x17
+endfunc errata_a57_859972_wa
+
+func check_errata_859972
+	mov	x1, #0x13
+	b	cpu_rev_var_ls
+endfunc check_errata_859972
+
+func check_errata_cve_2017_5715
+#if WORKAROUND_CVE_2017_5715
+	mov	x0, #ERRATA_APPLIES
+#else
+	mov	x0, #ERRATA_MISSING
+#endif
+	ret
+endfunc check_errata_cve_2017_5715
+
+func check_errata_cve_2018_3639
+#if WORKAROUND_CVE_2018_3639
+	mov	x0, #ERRATA_APPLIES
+#else
+	mov	x0, #ERRATA_MISSING
+#endif
+	ret
+endfunc check_errata_cve_2018_3639
 
 	/* -------------------------------------------------
 	 * The CPU Ops reset function for Cortex-A57.
@@ -353,13 +396,42 @@ func cortex_a57_reset_func
 	bl	errata_a57_833471_wa
 #endif
 
+#if ERRATA_A57_859972
+	mov	x0, x18
+	bl	errata_a57_859972_wa
+#endif
+
+#if IMAGE_BL31 && WORKAROUND_CVE_2017_5715
+	adr	x0, wa_cve_2017_5715_mmu_vbar
+	msr	vbar_el3, x0
+#endif
+
+#if WORKAROUND_CVE_2018_3639
+	mrs	x0, CORTEX_A57_ACTLR_EL1
+	orr	x0, x0, #CORTEX_A57_ACTLR_EL1_DIS_LOAD_PASS_STORE
+	msr	CORTEX_A57_ACTLR_EL1, x0
+	isb
+	dsb	sy
+#endif
+
+#if A57_ENABLE_NONCACHEABLE_LOAD_FWD
+	/* ---------------------------------------------
+	 * Enable higher performance non-cacheable load
+	 * forwarding
+	 * ---------------------------------------------
+	 */
+	mrs	x0, CORTEX_A57_ACTLR_EL1
+	orr	x0, x0, #CORTEX_A57_ACTLR_EN_NC_LOAD_FWD
+	msr	CORTEX_A57_ACTLR_EL1, x0
+#endif
+
 	/* ---------------------------------------------
 	 * Enable the SMP bit.
 	 * ---------------------------------------------
 	 */
-	mrs	x0, CPUECTLR_EL1
-	orr	x0, x0, #CPUECTLR_SMP_BIT
-	msr	CPUECTLR_EL1, x0
+	mrs	x0, CORTEX_A57_ECTLR_EL1
+	orr	x0, x0, #CORTEX_A57_ECTLR_SMP_BIT
+	msr	CORTEX_A57_ECTLR_EL1, x0
 	isb
 	ret	x19
 endfunc cortex_a57_reset_func
@@ -482,6 +554,9 @@ func cortex_a57_errata_report
 	report_errata ERRATA_A57_828024, cortex_a57, 828024
 	report_errata ERRATA_A57_829520, cortex_a57, 829520
 	report_errata ERRATA_A57_833471, cortex_a57, 833471
+	report_errata ERRATA_A57_859972, cortex_a57, 859972
+	report_errata WORKAROUND_CVE_2017_5715, cortex_a57, cve_2017_5715
+	report_errata WORKAROUND_CVE_2018_3639, cortex_a57, cve_2018_3639
 
 	ldp	x8, x30, [sp], #16
 	ret
@@ -503,14 +578,15 @@ cortex_a57_regs:  /* The ascii list of register names to be reported */
 
 func cortex_a57_cpu_reg_dump
 	adr	x6, cortex_a57_regs
-	mrs	x8, CPUECTLR_EL1
-	mrs	x9, CPUMERRSR_EL1
-	mrs	x10, L2MERRSR_EL1
+	mrs	x8, CORTEX_A57_ECTLR_EL1
+	mrs	x9, CORTEX_A57_MERRSR_EL1
+	mrs	x10, CORTEX_A57_L2MERRSR_EL1
 	ret
 endfunc cortex_a57_cpu_reg_dump
 
-
-declare_cpu_ops cortex_a57, CORTEX_A57_MIDR, \
+declare_cpu_ops_wa cortex_a57, CORTEX_A57_MIDR, \
 	cortex_a57_reset_func, \
+	check_errata_cve_2017_5715, \
+	CPU_NO_EXTRA2_FUNC, \
 	cortex_a57_core_pwr_dwn, \
 	cortex_a57_cluster_pwr_dwn

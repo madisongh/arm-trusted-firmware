@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2015, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2015-2018, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -27,12 +27,12 @@ endfunc cortex_a72_disable_dcache
 	 * ---------------------------------------------
 	 */
 func cortex_a72_disable_l2_prefetch
-	mrs	x0, CPUECTLR_EL1
-	orr	x0, x0, #CPUECTLR_DIS_TWD_ACC_PFTCH_BIT
-	mov	x1, #CPUECTLR_L2_IPFTCH_DIST_MASK
-	orr	x1, x1, #CPUECTLR_L2_DPFTCH_DIST_MASK
+	mrs	x0, CORTEX_A72_ECTLR_EL1
+	orr	x0, x0, #CORTEX_A72_ECTLR_DIS_TWD_ACC_PFTCH_BIT
+	mov	x1, #CORTEX_A72_ECTLR_L2_IPFTCH_DIST_MASK
+	orr	x1, x1, #CORTEX_A72_ECTLR_L2_DPFTCH_DIST_MASK
 	bic	x0, x0, x1
-	msr	CPUECTLR_EL1, x0
+	msr	CORTEX_A72_ECTLR_EL1, x0
 	isb
 	ret
 endfunc cortex_a72_disable_l2_prefetch
@@ -42,9 +42,9 @@ endfunc cortex_a72_disable_l2_prefetch
 	 * ---------------------------------------------
 	 */
 func cortex_a72_disable_hw_prefetcher
-	mrs	x0, CPUACTLR_EL1
-	orr	x0, x0, #CPUACTLR_DISABLE_L1_DCACHE_HW_PFTCH
-	msr	CPUACTLR_EL1, x0
+	mrs	x0, CORTEX_A72_ACTLR_EL1
+	orr	x0, x0, #CORTEX_A72_ACTLR_DISABLE_L1_DCACHE_HW_PFTCH
+	msr	CORTEX_A72_ACTLR_EL1, x0
 	isb
 	dsb	ish
 	ret
@@ -55,9 +55,9 @@ endfunc cortex_a72_disable_hw_prefetcher
 	 * ---------------------------------------------
 	 */
 func cortex_a72_disable_smp
-	mrs	x0, CPUECTLR_EL1
-	bic	x0, x0, #CPUECTLR_SMP_BIT
-	msr	CPUECTLR_EL1, x0
+	mrs	x0, CORTEX_A72_ECTLR_EL1
+	bic	x0, x0, #CORTEX_A72_ECTLR_SMP_BIT
+	msr	CORTEX_A72_ECTLR_EL1, x0
 	ret
 endfunc cortex_a72_disable_smp
 
@@ -73,18 +73,75 @@ func cortex_a72_disable_ext_debug
 	ret
 endfunc cortex_a72_disable_ext_debug
 
+	/* --------------------------------------------------
+	 * Errata Workaround for Cortex A72 Errata #859971.
+	 * This applies only to revision <= r0p3 of Cortex A72.
+	 * Inputs:
+	 * x0: variant[4:7] and revision[0:3] of current cpu.
+	 * Shall clobber:
+	 * --------------------------------------------------
+	 */
+func errata_a72_859971_wa
+	mov	x17,x30
+	bl	check_errata_859971
+	cbz	x0, 1f
+	mrs	x1, CORTEX_A72_CPUACTLR_EL1
+	orr	x1, x1, #CORTEX_A72_CPUACTLR_EL1_DIS_INSTR_PREFETCH
+	msr	CORTEX_A72_CPUACTLR_EL1, x1
+1:
+	ret	x17
+endfunc errata_a72_859971_wa
+
+func check_errata_859971
+	mov	x1, #0x03
+	b	cpu_rev_var_ls
+endfunc check_errata_859971
+
+func check_errata_cve_2017_5715
+#if WORKAROUND_CVE_2017_5715
+	mov	x0, #ERRATA_APPLIES
+#else
+	mov	x0, #ERRATA_MISSING
+#endif
+	ret
+endfunc check_errata_cve_2017_5715
+
+func check_errata_cve_2018_3639
+#if WORKAROUND_CVE_2018_3639
+	mov	x0, #ERRATA_APPLIES
+#else
+	mov	x0, #ERRATA_MISSING
+#endif
+	ret
+endfunc check_errata_cve_2018_3639
+
 	/* -------------------------------------------------
 	 * The CPU Ops reset function for Cortex-A72.
 	 * -------------------------------------------------
 	 */
 func cortex_a72_reset_func
+
+#if IMAGE_BL31 && WORKAROUND_CVE_2017_5715
+	cpu_check_csv2	x0, 1f
+	adr	x0, wa_cve_2017_5715_mmu_vbar
+	msr	vbar_el3, x0
+#endif
+
+#if WORKAROUND_CVE_2018_3639
+	mrs	x0, CORTEX_A72_ACTLR_EL1
+	orr	x0, x0, #CORTEX_A72_ACTLR_EL1_DIS_LOAD_PASS_STORE
+	msr	CORTEX_A72_ACTLR_EL1, x0
+	isb
+	dsb	sy
+#endif
+
 	/* ---------------------------------------------
 	 * As a bare minimum enable the SMP bit.
 	 * ---------------------------------------------
 	 */
-	mrs	x0, CPUECTLR_EL1
-	orr	x0, x0, #CPUECTLR_SMP_BIT
-	msr	CPUECTLR_EL1, x0
+	mrs	x0, CORTEX_A72_ECTLR_EL1
+	orr	x0, x0, #CORTEX_A72_ECTLR_SMP_BIT
+	msr	CORTEX_A72_ECTLR_EL1, x0
 	isb
 	ret
 endfunc cortex_a72_reset_func
@@ -196,6 +253,29 @@ func cortex_a72_cluster_pwr_dwn
 	b	cortex_a72_disable_ext_debug
 endfunc cortex_a72_cluster_pwr_dwn
 
+#if REPORT_ERRATA
+/*
+ * Errata printing function for Cortex A72. Must follow AAPCS.
+ */
+func cortex_a72_errata_report
+	stp	x8, x30, [sp, #-16]!
+
+	bl	cpu_get_rev_var
+	mov	x8, x0
+
+	/*
+	 * Report all errata. The revision-variant information is passed to
+	 * checking functions of each errata.
+	 */
+	report_errata ERRATA_A72_859971, cortex_a72, 859971
+	report_errata WORKAROUND_CVE_2017_5715, cortex_a72, cve_2017_5715
+	report_errata WORKAROUND_CVE_2018_3639, cortex_a72, cve_2018_3639
+
+	ldp	x8, x30, [sp], #16
+	ret
+endfunc cortex_a72_errata_report
+#endif
+
 	/* ---------------------------------------------
 	 * This function provides cortex_a72 specific
 	 * register information for crash reporting.
@@ -211,14 +291,15 @@ cortex_a72_regs:  /* The ascii list of register names to be reported */
 
 func cortex_a72_cpu_reg_dump
 	adr	x6, cortex_a72_regs
-	mrs	x8, CPUECTLR_EL1
-	mrs	x9, CPUMERRSR_EL1
-	mrs	x10, L2MERRSR_EL1
+	mrs	x8, CORTEX_A72_ECTLR_EL1
+	mrs	x9, CORTEX_A72_MERRSR_EL1
+	mrs	x10, CORTEX_A72_L2MERRSR_EL1
 	ret
 endfunc cortex_a72_cpu_reg_dump
 
-
-declare_cpu_ops cortex_a72, CORTEX_A72_MIDR, \
+declare_cpu_ops_wa cortex_a72, CORTEX_A72_MIDR, \
 	cortex_a72_reset_func, \
+	check_errata_cve_2017_5715, \
+	CPU_NO_EXTRA2_FUNC, \
 	cortex_a72_core_pwr_dwn, \
 	cortex_a72_cluster_pwr_dwn
