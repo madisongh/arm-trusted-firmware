@@ -38,6 +38,9 @@
 #define DENVER_CPU_ENABLE_DUAL_EXEC_EL2 (ULL(1) << 9)
 #define DENVER_CPU_ENABLE_DUAL_EXEC_EL3 (ULL(1) << 9)
 
+/* ACTRL_EL3 bit for Secure Performance Monitors enable */
+#define DENVER_CPU_ENABLE_MDCR_EL3_SPME (ULL(1) << 6)
+
 #ifndef __ASSEMBLY__
 
 /* Disable Dynamic Code Optimisation */

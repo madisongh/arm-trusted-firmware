@@ -102,6 +102,8 @@ static const mmap_region_t tegra_mmap[] = {
 	MAP_REGION_FLAT(TEGRA_UARTD_BASE, 0x30000U, /* 192KB - UART D, E, F */
 			(uint8_t)MT_DEVICE | (uint8_t)MT_RW | (uint8_t)MT_SECURE),
 #endif
+	MAP_REGION_FLAT(TEGRA_FUSE_BASE, 0x1000U, /* 64KB */
+			(uint8_t)MT_DEVICE | (uint8_t)MT_RW | (uint8_t)MT_SECURE),
 	MAP_REGION_FLAT(TEGRA_XUSB_PADCTL_BASE, 0x2000U, /* 8KB */
 			(uint8_t)MT_DEVICE | (uint8_t)MT_RW | (uint8_t)MT_SECURE),
 	MAP_REGION_FLAT(TEGRA_GICD_BASE, 0x1000, /* 4KB */
@@ -269,6 +271,18 @@ void plat_early_platform_setup(void)
 		actlr_el2 = read_actlr_el2();
 		actlr_el2 |= DENVER_CPU_ENABLE_DUAL_EXEC_EL2;
 		write_actlr_el2(actlr_el2);
+	}
+
+	/*
+	 * Enable Uncore Perfmon counters only when FUSE_SECURITY_MODE_0/ODM
+	 * Production fuse is not set. This fuse is customer-controlled and
+	 * will be set by OEM in their product's production.
+	 */
+	if (mmio_read_32(TEGRA_FUSE_BASE + SECURITY_MODE)
+			== ODM_PROD_FUSE_DISABLED) {
+		actlr_el3 = read_actlr_el3();
+		actlr_el3 |= DENVER_CPU_ENABLE_MDCR_EL3_SPME;
+		write_actlr_el3(actlr_el3);
 	}
 }
 

@@ -177,8 +177,16 @@
  * Tegra Fuse Controller related constants
  ******************************************************************************/
 #define TEGRA_FUSE_BASE			U(0x03820000)
+#define  SECURITY_MODE			U(0x1A0)
 #define  OPT_SUBREVISION		U(0x248)
 #define  SUBREVISION_MASK		U(0xF)
+
+/* ODM Production Fuse not set */
+#define ODM_PROD_FUSE_DISABLED		0U
+
+/* Clock identifier for the FUSE device */
+#define TEGRA194_CLK_FUSE		U(40)
+#define TEGRA_CLK_FUSE			TEGRA194_CLK_FUSE
 
 /*******************************************************************************
  * GICv2 & interrupt handling related constants

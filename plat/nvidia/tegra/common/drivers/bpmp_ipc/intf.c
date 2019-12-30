@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2017-2019, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -303,8 +303,8 @@ int tegra_bpmp_ipc_enable_clock(uint32_t clk_id)
 	int ret;
 	struct mrq_clk_request req;
 
-	/* only SE clocks are supported */
-	if (clk_id != TEGRA_CLK_SE) {
+	/* only SE & FUSE clocks are supported */
+	if ((clk_id != TEGRA_CLK_SE) && (clk_id != TEGRA_CLK_FUSE)) {
 		return -ENOTSUP;
 	}
 
@@ -326,8 +326,8 @@ int tegra_bpmp_ipc_disable_clock(uint32_t clk_id)
 	int ret;
 	struct mrq_clk_request req;
 
-	/* only SE clocks are supported */
-	if (clk_id != TEGRA_CLK_SE) {
+	/* only SE & FUSE clocks are supported */
+	if ((clk_id != TEGRA_CLK_SE) && (clk_id != TEGRA_CLK_FUSE)) {
 		return -ENOTSUP;
 	}
 

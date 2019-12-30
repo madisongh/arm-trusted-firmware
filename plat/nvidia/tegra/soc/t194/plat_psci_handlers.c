@@ -31,6 +31,7 @@
 #include <arch.h>
 #include <arch_helpers.h>
 #include <assert.h>
+#include <bpmp_ipc.h>
 #include <bl_common.h>
 #include <context.h>
 #include <context_mgmt.h>
@@ -48,6 +49,7 @@
 #include <tegra194_private.h>
 #include <tegra_platform.h>
 #include <tegra_private.h>
+#include <tegra_def.h>
 
 /* state id mask */
 #define TEGRA194_STATE_ID_MASK		0xFU
@@ -345,6 +347,7 @@ int32_t tegra_soc_pwr_domain_on_finish(const psci_power_state_t *target_state)
 	uint8_t stateid_afflvl2 = target_state->pwr_domain_state[PLAT_MAX_PWR_LVL];
 	cpu_context_t *ctx = cm_get_context(NON_SECURE);
 	uint64_t actlr_el3, actlr_el2, actlr_el1;
+	int32_t ret = PSCI_E_SUCCESS;
 
 	/*
 	 * Reset power state info for CPUs when onlining, we set
@@ -426,6 +429,26 @@ int32_t tegra_soc_pwr_domain_on_finish(const psci_power_state_t *target_state)
 			mmio_write_32(TEGRA_XUSB_PADCTL_BASE +
 				XUSB_PADCTL_DEV_AXI_STREAMID_PF_0, TEGRA_SID_XUSB_DEV);
 		}
+
+		/* Enable FUSE clock before reading FUSE_SECURITY_MODE register */
+		ret = tegra_bpmp_ipc_enable_clock(TEGRA194_CLK_FUSE);
+		assert(ret == 0);
+
+		/*
+		 * Enable Uncore Perfmon counters only when FUSE_SECURITY_MODE_0/ODM
+		 * Production fuse is not set. This fuse is customer-controlled and
+		 * will be set by OEM in their product's production.
+		 */
+		if (mmio_read_32(TEGRA_FUSE_BASE + SECURITY_MODE)
+				== ODM_PROD_FUSE_DISABLED) {
+			actlr_el3 = read_actlr_el3();
+			actlr_el3 |= DENVER_CPU_ENABLE_MDCR_EL3_SPME;
+			write_actlr_el3(actlr_el3);
+		}
+
+		/* Disable FUSE clock before reading FUSE_SECURITY_MODE register */
+		ret = tegra_bpmp_ipc_disable_clock(TEGRA194_CLK_FUSE);
+		assert(ret == 0);
 
 		/*
 	 	 * Enable dual execution optimized translations for EL2 and EL3.
