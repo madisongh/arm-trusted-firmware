@@ -87,6 +87,13 @@
 	str	x30, [sp, #CTX_GPREGS_OFFSET + CTX_GPREG_LR]
 	bl	save_gp_registers
 
+	/*
+	 * If Secure Cycle Counter is not disabled in MDCR_EL3
+	 * when ARMv8.5-PMU is implemented, save PMCR_EL0 and
+	 * disable all event counters and cycle counter.
+	 */
+	bl	save_pmcr_disable_pmu
+
 	/* Save the EL3 system registers needed to return from this exception */
 	mrs	x0, spsr_el3
 	mrs	x1, elr_el3
@@ -325,6 +332,13 @@ smc_handler64:
 	 * contain flags we need to pass to the handler.
 	 */
 	bl	save_gp_registers
+
+	/*
+	 * If Secure Cycle Counter is not disabled in MDCR_EL3
+	 * when ARMv8.5-PMU is implemented, save PMCR_EL0 and
+	 * disable all event counters and cycle counter.
+	 */
+	bl	save_pmcr_disable_pmu
 
 	mov	x5, xzr
 	mov	x6, sp
