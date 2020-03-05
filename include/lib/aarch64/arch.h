@@ -177,14 +177,35 @@
 #define SCR_NS_BIT		(U(1) << 0)
 #define SCR_VALID_BIT_MASK	U(0x2f8f)
 
-/* MDCR definitions */
+/* MDCR_EL3 definitions */
+#define MDCR_SCCD_BIT		(ULL(1) << 23)
+#define MDCR_SPME_BIT		(ULL(1) << 17)
+#define MDCR_SDD_BIT		(ULL(1) << 16)
 #define MDCR_SPD32(x)		((x) << 14)
 #define MDCR_SPD32_LEGACY	U(0x0)
 #define MDCR_SPD32_DISABLE	U(0x2)
 #define MDCR_SPD32_ENABLE	U(0x3)
-#define MDCR_SDD_BIT		(U(1) << 16)
+#define MDCR_TDOSA_BIT		(ULL(1) << 10)
+#define MDCR_TDA_BIT		(ULL(1) << 9)
+#define MDCR_TPM_BIT		(ULL(1) << 6)
+#define MDCR_EL3_RESET_VAL	ULL(0x0)
 
-#define MDCR_DEF_VAL		(MDCR_SDD_BIT | MDCR_SPD32(MDCR_SPD32_DISABLE))
+/* MDCR_EL2 definitions */
+#define MDCR_EL2_HLP		(U(1) << 26)
+#define MDCR_EL2_HCCD		(U(1) << 23)
+#define MDCR_EL2_TTRF		(U(1) << 19)
+#define MDCR_EL2_HPMD		(U(1) << 17)
+#define MDCR_EL2_TPMS		(U(1) << 14)
+#define MDCR_EL2_E2PB(x)	((x) << 12)
+#define MDCR_EL2_E2PB_EL1	U(0x3)
+#define MDCR_EL2_TDRA_BIT	(U(1) << 11)
+#define MDCR_EL2_TDOSA_BIT	(U(1) << 10)
+#define MDCR_EL2_TDA_BIT	(U(1) << 9)
+#define MDCR_EL2_TDE_BIT	(U(1) << 8)
+#define MDCR_EL2_HPME_BIT	(U(1) << 7)
+#define MDCR_EL2_TPM_BIT	(U(1) << 6)
+#define MDCR_EL2_TPMCR_BIT	(U(1) << 5)
+#define MDCR_EL2_RESET_VAL	U(0x0)
 
 /* HCR definitions */
 #define HCR_RW_SHIFT		U(31)
@@ -439,9 +460,13 @@
 #define PMCR_EL0_N_SHIFT	U(11)
 #define PMCR_EL0_N_MASK		U(0x1f)
 #define PMCR_EL0_N_BITS		(PMCR_EL0_N_MASK << PMCR_EL0_N_SHIFT)
+#define PMCR_EL0_LP_BIT		(U(1) << 7)
 #define PMCR_EL0_LC_BIT		(U(1) << 6)
 #define PMCR_EL0_DP_BIT		(U(1) << 5)
 #define PMCR_EL0_X_BIT		(U(1) << 4)
 #define PMCR_EL0_D_BIT		(U(1) << 3)
+#define PMCR_EL0_C_BIT		(U(1) << 2)
+#define PMCR_EL0_P_BIT		(U(1) << 1)
+#define PMCR_EL0_E_BIT		(U(1) << 0)
 
 #endif /* __ARCH_H__ */
