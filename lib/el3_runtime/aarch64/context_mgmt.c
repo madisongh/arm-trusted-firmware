@@ -58,7 +58,7 @@ void cm_init(void)
 static void cm_init_context_common(cpu_context_t *ctx, const entry_point_info_t *ep)
 {
 	uint32_t security_state;
-	uint32_t scr_el3, pmcr_el0;
+	uint32_t scr_el3;
 	el3_state_t *state;
 	gp_regs_t *gp_regs;
 	uint64_t sctlr_elx, actlr_elx;
@@ -161,31 +161,10 @@ static void cm_init_context_common(cpu_context_t *ctx, const entry_point_info_t 
 	actlr_elx = read_actlr_el1();
 	write_ctx_reg((get_sysregs_ctx(ctx)), (CTX_ACTLR_EL1), (actlr_elx));
 
-	if (security_state == SECURE) {
-		/*
-		 * Initialise PMCR_EL0 for secure context only, setting all
-		 * fields rather than relying on hw. Some fields are
-		 * architecturally UNKNOWN on reset.
-		 *
-		 * PMCR_EL0.LC: Set to one so that cycle counter overflow, that
-		 *  is recorded in PMOVSCLR_EL0[31], occurs on the increment
-		 *  that changes PMCCNTR_EL0[63] from 1 to 0.
-		 *
-		 * PMCR_EL0.DP: Set to one so that the cycle counter,
-		 *  PMCCNTR_EL0 does not count when event counting is prohibited.
-		 *
-		 * PMCR_EL0.X: Set to zero to disable export of events.
-		 *
-		 * PMCR_EL0.D: Set to zero so that, when enabled, PMCCNTR_EL0
-		 *  counts on every clock cycle.
-		 */
-		pmcr_el0 = ((PMCR_EL0_RESET_VAL | PMCR_EL0_LC_BIT
-				| PMCR_EL0_DP_BIT)
-				& ~(PMCR_EL0_X_BIT | PMCR_EL0_D_BIT));
-		write_ctx_reg(get_sysregs_ctx(ctx), CTX_PMCR_EL0, pmcr_el0);
-	}
-
-	/* Populate EL3 state so that we've the right context before doing ERET */
+	/*
+	 * Populate EL3 state so that we've the right context
+	 * before doing ERET
+	 */
 	state = get_el3state_ctx(ctx);
 	write_ctx_reg(state, CTX_SCR_EL3, scr_el3);
 	write_ctx_reg(state, CTX_ELR_EL3, ep->pc);
@@ -234,7 +213,7 @@ void cm_init_my_context(const entry_point_info_t *ep)
  ******************************************************************************/
 void cm_prepare_el3_exit(uint32_t security_state)
 {
-	uint64_t sctlr_elx, scr_el3, cptr_el2;
+	uint64_t sctlr_elx, scr_el3, cptr_el2, mdcr_el2;
 	cpu_context_t *ctx = cm_get_context(security_state);
 
 	assert(ctx != NULL);
@@ -279,15 +258,73 @@ void cm_prepare_el3_exit(uint32_t security_state)
 			 */
 			write_vttbr_el2(0);
 			/*
-			 * Avoid unexpected debug traps in case where MDCR_EL2
-			 * is not completely reset by the hardware - set
-			 * MDCR_EL2.HPMN to PMCR_EL0.N and zero the remaining
-			 * bits.
-			 * MDCR_EL2.HPMN and PMCR_EL0.N fields are the same size
-			 * (5 bits) and HPMN is at offset zero within MDCR_EL2.
+			 * Initialise MDCR_EL2, setting all fields rather than
+			 * relying on hw. Some fields are architecturally
+			 * UNKNOWN on reset.
+			 *
+			 * MDCR_EL2.HLP: Set to one so that event counter
+			 *  overflow, that is recorded in PMOVSCLR_EL0[0-30],
+			 *  occurs on the increment that changes
+			 *  PMEVCNTR<n>_EL0[63] from 1 to 0, when ARMv8.5-PMU is
+			 *  implemented. This bit is RES0 in versions of the
+			 *  architecture earlier than ARMv8.5, setting it to 1
+			 *  doesn't have any effect on them.
+			 *
+			 * MDCR_EL2.TTRF: Set to zero so that access to Trace
+			 *  Filter Control register TRFCR_EL1 at EL1 is not
+			 *  trapped to EL2. This bit is RES0 in versions of
+			 *  the architecture earlier than ARMv8.4.
+			 *
+			 * MDCR_EL2.HPMD: Set to one so that event counting is
+			 *  prohibited at EL2. This bit is RES0 in versions of
+			 *  the architecture earlier than ARMv8.1, setting it
+			 *  to 1 doesn't have any effect on them.
+			 *
+			 * MDCR_EL2.TPMS: Set to zero so that accesses to
+			 *  Statistical Profiling control registers from EL1
+			 *  do not trap to EL2. This bit is RES0 when SPE is
+			 *  not implemented.
+			 *
+			 * MDCR_EL2.TDRA: Set to zero so that Non-secure EL0 and
+			 *  EL1 System register accesses to the Debug ROM
+			 *  registers are not trapped to EL2.
+			 *
+			 * MDCR_EL2.TDOSA: Set to zero so that Non-secure EL1
+			 *  System register accesses to the powerdown debug
+			 *  registers are not trapped to EL2.
+			 *
+			 * MDCR_EL2.TDA: Set to zero so that System register
+			 *  accesses to the debug registers do not trap to EL2.
+			 *
+			 * MDCR_EL2.TDE: Set to zero so that debug exceptions
+			 *  are not routed to EL2.
+			 *
+			 * MDCR_EL2.HPME: Set to zero to disable EL2 Performance
+			 *  Monitors.
+			 *
+			 * MDCR_EL2.TPM: Set to zero so that Non-secure EL0 and
+			 *  EL1 accesses to all Performance Monitors registers
+			 *  are not trapped to EL2.
+			 *
+			 * MDCR_EL2.TPMCR: Set to zero so that Non-secure EL0
+			 *  and EL1 accesses to the PMCR_EL0 or PMCR are not
+			 *  trapped to EL2.
+			 *
+			 * MDCR_EL2.HPMN: Set to value of PMCR_EL0.N which is the
+			 *  architecturally-defined reset value.
 			 */
-			write_mdcr_el2((read_pmcr_el0() & PMCR_EL0_N_BITS)
-					>> PMCR_EL0_N_SHIFT);
+			mdcr_el2 = ((MDCR_EL2_RESET_VAL | MDCR_EL2_HLP |
+				     MDCR_EL2_HPMD) |
+				   ((read_pmcr_el0() & PMCR_EL0_N_BITS)
+				   >> PMCR_EL0_N_SHIFT)) &
+				   ~(MDCR_EL2_TTRF | MDCR_EL2_TPMS |
+				     MDCR_EL2_TDRA_BIT | MDCR_EL2_TDOSA_BIT |
+				     MDCR_EL2_TDA_BIT | MDCR_EL2_TDE_BIT |
+				     MDCR_EL2_HPME_BIT | MDCR_EL2_TPM_BIT |
+				     MDCR_EL2_TPMCR_BIT);
+
+			write_mdcr_el2(mdcr_el2);
+
 			/*
 			 * Avoid unexpected traps of non-secure access to
 			 * certain system registers at EL1 or lower where
