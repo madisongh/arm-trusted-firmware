@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2018, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2020, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -419,8 +419,8 @@ smc_unknown:
 
 smc_prohibited:
 	ldr	x30, [sp, #CTX_GPREGS_OFFSET + CTX_GPREG_LR]
-	mov	w0, #SMC_UNK
-	eret
+	mov	x0, #SMC_UNK
+	exception_return
 
 rt_svc_fw_critical_error:
 	/* Switch to SP_ELx */

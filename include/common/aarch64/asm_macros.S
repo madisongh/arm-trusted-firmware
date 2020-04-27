@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2017, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2020, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -200,4 +200,13 @@
 	.space	SPINLOCK_ASM_SIZE
 	.endm
 
-#endif /* __ASM_MACROS_S__ */
+	/*
+	 * Macro for mitigating against speculative execution beyond ERET.
+	 */
+	.macro exception_return
+	eret
+	dsb nsh
+	isb
+	.endm
+
+#endif /* ASM_MACROS_S */

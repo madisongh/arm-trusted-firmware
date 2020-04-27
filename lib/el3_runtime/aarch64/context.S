@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013-2019, ARM Limited and Contributors. All rights reserved.
+ * Copyright (c) 2013-2020, ARM Limited and Contributors. All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -362,7 +362,7 @@ endfunc restore_gp_registers
 func restore_gp_registers_eret
 	bl	restore_gp_registers
 	ldr	x30, [sp, #CTX_GPREGS_OFFSET + CTX_GPREG_LR]
-	eret
+	exception_return
 endfunc	restore_gp_registers_eret
 
 	/* -----------------------------------------------------
@@ -399,7 +399,6 @@ func el3_exit
 	beq	1f
 	blr	x17
 #endif
-
 1:
 	/* Restore saved general purpose registers and return */
 	b	restore_gp_registers_eret
